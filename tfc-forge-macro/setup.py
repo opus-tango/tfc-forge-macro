@@ -7,13 +7,14 @@ Flow:
   1. Anvil GUI: click top-left, then bottom-right of the bounding box (defines tl, br, width, height).
   2. Click the center of each main inventory slot (i1–i27) and hotbar slot (h1–h9).
   3. Recipe GUI: same top-left / bottom-right for the recipe panel.
-  4. Writes coords.json with full anvil and recipe maps (recipe button offsets stay 0 until you edit or extend this script).
+  4. Writes coords.json. With -f/--full, every named offset is recorded; otherwise only anvil and recipe GUI rectangles (other offsets stay 0).
 
 Press Esc to abort at any time.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import threading
@@ -66,7 +67,45 @@ def _empty_recipe_map() -> dict[str, Any]:
     return m
 
 
+# Normalized offsets relative to anvil GUI box (after tl/br/width/height are set).
+ANVIL_UI_OFFSET_KEYS = [
+    "weld",
+    "input1",
+    "input2",
+    "L",
+    "M",
+    "D",
+    "P",
+    "G",
+    "Y",
+    "O",
+    "R",
+]
 ANVIL_INVENTORY_KEYS = [f"i{i}" for i in range(1, 28)] + [f"h{i}" for i in range(1, 10)]
+
+RECIPE_OFFSET_KEYS = ["rrb","rlb"] + [f"r{i}" for i in range(1, 19)]
+
+_ANVIL_UI_LABELS: dict[str, str] = {
+    "weld": "weld button",
+    "input1": "first anvil input slot",
+    "input2": "second anvil input slot",
+    "L": "Light Hit",
+    "M": "Medium Hit",
+    "D": "Heavy Hit",
+    "P": "Draw",
+    "G": "Punch",
+    "Y": "Bend",
+    "O": "Shrink",
+    "R": "Upset",
+}
+
+
+def _recipe_offset_label(key: str) -> str:
+    if key == "rlb":
+        return "recipe panel left scroll / page button"
+    if key == "rrb":
+        return "recipe panel right scroll / page button"
+    return f"recipe slot {key}"
 
 
 def apply_top_left_bottom_right(
@@ -136,7 +175,7 @@ class _ClickSession:
         return item
 
 
-def run_setup(output_path: Path) -> None:
+def run_setup(output_path: Path, full: bool) -> None:
     anvil = _empty_anvil_map()
     recipe = _empty_recipe_map()
     session = _ClickSession()
@@ -145,11 +184,12 @@ def run_setup(output_path: Path) -> None:
     mouse_listener.start()
     try:
         with keyboard.Listener(on_release=session.on_release) as kbd_listener:
-            print(
+            intro_anvil = (
                 "=== Anvil GUI ===\n"
-                "Open the anvil / forge screen. You will define the full GUI rectangle, then inventory slots.\n",
-                flush=True,
+                "Open the anvil / forge screen. You will define the full GUI outer rectangle"
+                + (" then every clickable offset.\n" if full else ".\n")
             )
+            print(intro_anvil, flush=True)
             tl_pt = session.wait_click("1/2 Click the TOP-LEFT corner of the anvil GUI (outer box).")
             br_pt = session.wait_click("2/2 Click the BOTTOM-RIGHT corner of the same GUI box.")
             apply_top_left_bottom_right(anvil, tl_pt, br_pt)
@@ -158,19 +198,36 @@ def run_setup(output_path: Path) -> None:
                 flush=True,
             )
 
-            total = len(ANVIL_INVENTORY_KEYS)
-            for n, key in enumerate(ANVIL_INVENTORY_KEYS, start=1):
-                xy = session.wait_click(
-                    f"Inventory {n}/{total}: click the center of slot {key} "
-                    "(i1–i27: main inventory, usually 9×3 left-to-right, top-to-bottom; then h1–h9: hotbar)."
-                )
-                set_offset(anvil, key, xy[0], xy[1])
+            if full:
+                ui_total = len(ANVIL_UI_OFFSET_KEYS)
+                for n, key in enumerate(ANVIL_UI_OFFSET_KEYS, start=1):
+                    label = _ANVIL_UI_LABELS.get(key, key)
+                    xy = session.wait_click(
+                        f"Anvil UI {n}/{ui_total} ({key}): click the center of the {label}."
+                    )
+                    set_offset(anvil, key, xy[0], xy[1])
+
+                inv_total = len(ANVIL_INVENTORY_KEYS)
+                for n, key in enumerate(ANVIL_INVENTORY_KEYS, start=1):
+                    xy = session.wait_click(
+                        f"Inventory {n}/{inv_total}: click the center of slot {key} "
+                        "(i1–i27: main inventory, usually 9×3 left-to-right, top-to-bottom; then h1–h9: hotbar)."
+                    )
+                    set_offset(anvil, key, xy[0], xy[1])
+                
+                session.wait_click("Pickup your ingot to move to the second input slot.")
+                session.wait_click("Move the ingot to the second input slot.")
+
+                plansclick = session.wait_click("Click the PLAN button of the anvil GUI box.")
+                set_offset(anvil, "plans", plansclick[0], plansclick[1])
 
             print(
                 "\n=== Recipe GUI ===\n"
                 "Open the recipe selector panel (or the screen where it appears). Same corner convention.\n",
                 flush=True,
             )
+            if not full:
+              session.wait_click("Click the OPEN button of the recipe GUI box.")
             rtl = session.wait_click("1/2 Click the TOP-LEFT corner of the recipe GUI box.")
             rbr = session.wait_click("2/2 Click the BOTTOM-RIGHT corner of the recipe GUI box.")
             apply_top_left_bottom_right(recipe, rtl, rbr)
@@ -178,10 +235,14 @@ def run_setup(output_path: Path) -> None:
                 f"   Box: tl={recipe['tl']} br={recipe['br']} size={recipe['width']}x{recipe['height']}\n",
                 flush=True,
             )
-            print(
-                "Recipe controls (rlb, rrb, r1–r18) are left at [0,0] in the file; calibrate them later if needed.\n",
-                flush=True,
-            )
+
+            if full:
+                rec_total = len(RECIPE_OFFSET_KEYS)
+                for n, key in enumerate(RECIPE_OFFSET_KEYS, start=1):
+                    xy = session.wait_click(
+                        f"Recipe {n}/{rec_total} ({key}): click the center of the {_recipe_offset_label(key)}."
+                    )
+                    set_offset(recipe, key, xy[0], xy[1])
 
             payload = {
                 "anvil": coord_map_to_json_dict(anvil),
@@ -194,11 +255,29 @@ def run_setup(output_path: Path) -> None:
 
 
 def main() -> None:
-    out = DEFAULT_OUTPUT
-    if len(sys.argv) > 1:
-        out = Path(sys.argv[1]).expanduser().resolve()
+    parser = argparse.ArgumentParser(
+        description="Interactive coordinate calibration for TFC forge macro.",
+    )
+    parser.add_argument(
+        "-f",
+        "--full",
+        action="store_true",
+        help=(
+            "Record every offset: anvil UI (plans, weld, inputs, forge steps, inventory, hotbar) "
+            "and recipe UI (rlb, rrb, r1–r18). Default: only the anvil and recipe GUI rectangles."
+        ),
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help=f"Path to output coords.json (default: {DEFAULT_OUTPUT}).",
+    )
+    args = parser.parse_args()
+    
     try:
-        run_setup(out)
+        run_setup(args.output, args.full)
     except SystemExit as e:
         print(str(e), flush=True)
         raise
