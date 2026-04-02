@@ -5,9 +5,10 @@ Run from a terminal: python setup.py
 
 Flow:
   1. Anvil GUI: click top-left, then bottom-right of the bounding box (defines tl, br, width, height).
-  2. Click the center of each main inventory slot (i1–i27) and hotbar slot (h1–h9).
+  2. With -f/--full: click only the first main inventory slot (i1); i2–i27 and h1–h9 are filled from grid steps (see SLOT_STEP_X / INV_ROW_STEP_Y below).
   3. Recipe GUI: same top-left / bottom-right for the recipe panel.
-  4. Writes coords.json. With -f/--full, every named offset is recorded; otherwise only anvil and recipe GUI rectangles (other offsets stay 0).
+  4. With -f/--full: click the first recipe slot (r1); r2–r18 are filled from grid steps; scroll buttons rlb/rrb are still clicked manually.
+  5. Writes coords.json. With -f/--full, every named offset is recorded; otherwise only anvil and recipe GUI rectangles (other offsets stay 0).
 
 Press Esc to abort at any time.
 """
@@ -25,6 +26,12 @@ from typing import Any
 from pynput import keyboard, mouse
 
 DEFAULT_OUTPUT = Path(__file__).resolve().parent / "coords.json"
+
+# Normalized grid steps (fraction of GUI width / height). One row = 9 slots left-to-right;
+# inventory is 4 rows (i1–i27 then hotbar h1–h9); recipe panel is 2 rows (r1–r18).
+SLOT_STEP_X = 1.0 / 9.5
+INV_ROW_STEP_Y = 1.0 / 11.0
+RECIPE_ROW_STEP_Y = 1.0 / 8.35
 
 
 def _empty_anvil_map() -> dict[str, Any]:
@@ -81,9 +88,28 @@ ANVIL_UI_OFFSET_KEYS = [
     "O",
     "R",
 ]
-ANVIL_INVENTORY_KEYS = [f"i{i}" for i in range(1, 28)] + [f"h{i}" for i in range(1, 10)]
+RECIPE_SCROLL_KEYS = ["rrb","rlb"]
 
-RECIPE_OFFSET_KEYS = ["rrb","rlb"] + [f"r{i}" for i in range(1, 19)]
+
+def fill_anvil_inventory_from_i1(coord_map: dict[str, Any]) -> None:
+    """Fill i1–i27 and h1–h9 from i1's normalized offset and SLOT_STEP_X / INV_ROW_STEP_Y."""
+    ox0, oy0 = coord_map["i1"]
+    for k in range(1, 28):
+        idx = k - 1
+        row, col = idx // 9, idx % 9
+        coord_map[f"i{k}"] = (ox0 + col * SLOT_STEP_X, oy0 + row * INV_ROW_STEP_Y)
+    for k in range(1, 10):
+        col = k - 1
+        coord_map[f"h{k}"] = (ox0 + col * SLOT_STEP_X, oy0 + 3 * INV_ROW_STEP_Y)
+
+
+def fill_recipe_slots_from_r1(coord_map: dict[str, Any]) -> None:
+    """Fill r1–r18 from r1's normalized offset and SLOT_STEP_X / RECIPE_ROW_STEP_Y."""
+    ox0, oy0 = coord_map["r1"]
+    for k in range(1, 19):
+        idx = k - 1
+        row, col = idx // 9, idx % 9
+        coord_map[f"r{k}"] = (ox0 + col * SLOT_STEP_X, oy0 + row * RECIPE_ROW_STEP_Y)
 
 _ANVIL_UI_LABELS: dict[str, str] = {
     "weld": "weld button",
@@ -95,8 +121,8 @@ _ANVIL_UI_LABELS: dict[str, str] = {
     "P": "Draw",
     "G": "Punch",
     "Y": "Bend",
-    "O": "Shrink",
-    "R": "Upset",
+    "O": "Upset",
+    "R": "Shrink",
 }
 
 
@@ -207,13 +233,12 @@ def run_setup(output_path: Path, full: bool) -> None:
                     )
                     set_offset(anvil, key, xy[0], xy[1])
 
-                inv_total = len(ANVIL_INVENTORY_KEYS)
-                for n, key in enumerate(ANVIL_INVENTORY_KEYS, start=1):
-                    xy = session.wait_click(
-                        f"Inventory {n}/{inv_total}: click the center of slot {key} "
-                        "(i1–i27: main inventory, usually 9×3 left-to-right, top-to-bottom; then h1–h9: hotbar)."
-                    )
-                    set_offset(anvil, key, xy[0], xy[1])
+                xy_i1 = session.wait_click(
+                    "Inventory: click the center of slot i1 (top-left of the 9×3 main grid). "
+                    "i2–i27 and h1–h9 are filled using horizontal step 1/9.5 and vertical 1/11 per row (4 rows total including hotbar)."
+                )
+                set_offset(anvil, "i1", xy_i1[0], xy_i1[1])
+                fill_anvil_inventory_from_i1(anvil)
                 
                 session.wait_click("Pickup your ingot to move to the second input slot.")
                 session.wait_click("Move the ingot to the second input slot.")
@@ -227,7 +252,7 @@ def run_setup(output_path: Path, full: bool) -> None:
                 flush=True,
             )
             if not full:
-              session.wait_click("Click the OPEN button of the recipe GUI box.")
+                session.wait_click("Click the OPEN button of the recipe GUI box.")
             rtl = session.wait_click("1/2 Click the TOP-LEFT corner of the recipe GUI box.")
             rbr = session.wait_click("2/2 Click the BOTTOM-RIGHT corner of the recipe GUI box.")
             apply_top_left_bottom_right(recipe, rtl, rbr)
@@ -237,12 +262,19 @@ def run_setup(output_path: Path, full: bool) -> None:
             )
 
             if full:
-                rec_total = len(RECIPE_OFFSET_KEYS)
-                for n, key in enumerate(RECIPE_OFFSET_KEYS, start=1):
+                for n, key in enumerate(RECIPE_SCROLL_KEYS, start=1):
                     xy = session.wait_click(
-                        f"Recipe {n}/{rec_total} ({key}): click the center of the {_recipe_offset_label(key)}."
+                        f"Recipe scroll {n}/{len(RECIPE_SCROLL_KEYS)} ({key}): "
+                        f"click the center of the {_recipe_offset_label(key)}."
                     )
                     set_offset(recipe, key, xy[0], xy[1])
+                xy_r1 = session.wait_click(
+                    "Recipe: click the center of slot r1 (top-left of the recipe grid). "
+                    "r2–r18 use horizontal step 1/9.5 and vertical 1/8.35 per row."
+                )
+                set_offset(recipe, "r1", xy_r1[0], xy_r1[1])
+                fill_recipe_slots_from_r1(recipe)
+                
 
             payload = {
                 "anvil": coord_map_to_json_dict(anvil),
@@ -263,8 +295,8 @@ def main() -> None:
         "--full",
         action="store_true",
         help=(
-            "Record every offset: anvil UI (plans, weld, inputs, forge steps, inventory, hotbar) "
-            "and recipe UI (rlb, rrb, r1–r18). Default: only the anvil and recipe GUI rectangles."
+            "Record every offset: anvil UI (plans, weld, inputs, forge steps), i1 plus derived inventory/hotbar grid, "
+            "and recipe UI (r1 plus derived r2–r18, then rlb/rrb). Default: only the anvil and recipe GUI rectangles."
         ),
     )
     parser.add_argument(
