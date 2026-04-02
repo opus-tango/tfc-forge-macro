@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -55,6 +56,11 @@ def resolve_coord_map(payload: dict[str, Any], name: str) -> dict[str, Any]:
             raise ValueError(f"{name!r} in {section!r} is not a coordinate pair.")
         return m
     raise KeyError(f"Unknown slot {name!r} (not in anvil or recipe).")
+
+
+def parse_slots_file(content: str) -> list[str]:
+    """Split slot names on commas, spaces, tabs, and newlines; empty tokens are dropped."""
+    return [t for t in re.split(r"[\s,]+", content.strip()) if t]
 
 
 def parse_slot_token(token: str) -> tuple[str, bool]:
@@ -160,10 +166,24 @@ def main() -> None:
         help=f"Path to coords.json (default: {DEFAULT_COORDS_PATH}).",
     )
     parser.add_argument(
+        "-f",
+        "--file",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Read slot names from this file (commas, spaces, and newlines separate tokens). "
+            "When set, positional SLOT arguments are ignored."
+        ),
+    )
+    parser.add_argument(
         "slots",
         nargs="*",
         metavar="SLOT",
-        help="Slot names from coords.json, e.g. M D P G i9 h6. Use _NAME for shift-click.",
+        help=(
+            "Slot names from coords.json, e.g. M D P G i9 h6. Use _NAME for shift-click. "
+            "Ignored when --file is set."
+        ),
     )
     args = parser.parse_args()
     path = args.coords_file.expanduser().resolve() if args.coords_file else DEFAULT_COORDS_PATH
@@ -172,7 +192,17 @@ def main() -> None:
         print(f"Missing coords file: {path}", file=sys.stderr)
         sys.exit(1)
 
-    slots = args.slots if args.slots else DEFAULT_TEST_SLOTS
+    if args.file is not None:
+        slots_path = args.file.expanduser().resolve()
+        if not slots_path.is_file():
+            print(f"Missing slots file: {slots_path}", file=sys.stderr)
+            sys.exit(1)
+        slots = parse_slots_file(slots_path.read_text(encoding="utf-8"))
+        if not slots:
+            print("Slots file is empty or contains no slot names.", file=sys.stderr)
+            sys.exit(1)
+    else:
+        slots = args.slots if args.slots else DEFAULT_TEST_SLOTS
 
     time.sleep(args.start_delay / 1000)
 
