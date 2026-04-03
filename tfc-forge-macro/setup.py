@@ -4,11 +4,15 @@ Interactive coordinate calibration for TFC forge macro.
 Run from a terminal: python setup.py
 
 Flow:
-  1. Anvil GUI: click top-left, then bottom-right of the bounding box (defines tl, br, width, height).
-  2. With -f/--full: click only the first main inventory slot (i1); i2–i27 and h1–h9 are filled from grid steps (see SLOT_STEP_X / INV_ROW_STEP_Y below).
-  3. Recipe GUI: same top-left / bottom-right for the recipe panel.
-  4. With -f/--full: click the first recipe slot (r1); r2–r18 are filled from grid steps; scroll buttons rlb/rrb are still clicked manually.
-  5. Writes coords.json. With -f/--full, every named offset is recorded; otherwise only anvil and recipe GUI rectangles (other offsets stay 0).
+  1. Without -f/--full: requires an existing coords file (default coords.json). Only tl, br, width, and
+     height are updated for the anvil and recipe sections; all other keys are preserved.
+     If no coords file exists yet, run with -f/--full first.
+  2. With -f/--full: full calibration from scratch (empty maps).
+  3. Anvil GUI: click top-left, then bottom-right of the bounding box (defines tl, br, width, height).
+  4. With -f/--full: click only the first main inventory slot (i1); i2–i27 and h1–h9 are filled from grid steps (see SLOT_STEP_X / INV_ROW_STEP_Y below).
+  5. Recipe GUI: same top-left / bottom-right for the recipe panel.
+  6. With -f/--full: click the first recipe slot (r1); r2–r18 are filled from grid steps; scroll buttons rlb/rrb are still clicked manually.
+  7. Writes coords.json. With -f/--full, every named offset is recorded.
 
 Press Esc to abort at any time.
 """
@@ -16,6 +20,7 @@ Press Esc to abort at any time.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 import threading
@@ -176,6 +181,21 @@ def coord_map_to_json_dict(coord_map: dict[str, Any]) -> dict[str, Any]:
     return {k: _serialize_value(v) for k, v in coord_map.items()}
 
 
+def load_existing_coord_maps(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Load anvil and recipe maps from JSON for rectangle-only updates. Deep-copied for mutation."""
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        raise ValueError(f"Could not read coords file {path}: {e}") from e
+    if not isinstance(raw, dict) or "anvil" not in raw or "recipe" not in raw:
+        raise ValueError(f"{path} must be a JSON object with 'anvil' and 'recipe' keys")
+    anvil = raw["anvil"]
+    recipe = raw["recipe"]
+    if not isinstance(anvil, dict) or not isinstance(recipe, dict):
+        raise ValueError("'anvil' and 'recipe' must be JSON objects")
+    return copy.deepcopy(anvil), copy.deepcopy(recipe)
+
+
 class _ClickSession:
     def __init__(self) -> None:
         self._q: Queue[tuple[int, int] | None] = Queue()
@@ -202,8 +222,18 @@ class _ClickSession:
 
 
 def run_setup(output_path: Path, full: bool) -> None:
-    anvil = _empty_anvil_map()
-    recipe = _empty_recipe_map()
+    if full:
+        anvil = _empty_anvil_map()
+        recipe = _empty_recipe_map()
+    else:
+        if not output_path.is_file():
+            raise SystemExit(
+                f"No coords file at {output_path}. Run with -f/--full once to record all offsets, "
+                "then use this mode to refresh only GUI rectangles after resolution or UI scale changes.\n"
+                f"Example: python {Path(__file__).name} -f"
+            )
+        anvil, recipe = load_existing_coord_maps(output_path)
+
     session = _ClickSession()
 
     mouse_listener = mouse.Listener(on_click=session.on_click)
@@ -295,8 +325,10 @@ def main() -> None:
         "--full",
         action="store_true",
         help=(
-            "Record every offset: anvil UI (plans, weld, inputs, forge steps), i1 plus derived inventory/hotbar grid, "
-            "and recipe UI (r1 plus derived r2–r18, then rlb/rrb). Default: only the anvil and recipe GUI rectangles."
+            "Record every offset from scratch: anvil UI (plans, weld, inputs, forge steps), i1 plus derived "
+            "inventory/hotbar grid, and recipe UI (r1 plus derived r2–r18, then rlb/rrb). "
+            "Required the first time (no coords file). Without -f, an existing coords file is updated: only "
+            "anvil and recipe tl, br, width, and height."
         ),
     )
     parser.add_argument(
