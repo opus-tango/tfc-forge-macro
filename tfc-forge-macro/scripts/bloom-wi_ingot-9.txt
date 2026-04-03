@@ -1,0 +1,45 @@
+_i1
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i2
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i3
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i4
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i5
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i6
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i7
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i8
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
+_i9
+R R O Y L L L
+R R Y Y Y L L L
+-input2
++q
