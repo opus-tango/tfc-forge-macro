@@ -11,6 +11,8 @@ against named slots and buttons so you can run repeatable forging sequences.
 - [Quick Start](#quick-start)
 - [Installation (details)](#installation-details)
 - [Coordinate Setup](#coordinate-setup)
+- [Writing macro scripts](#writing-macro-scripts)
+- [Calculating the forge recipes](#calculating-the-forge-recipes)
 - [Running the Macro](#running-the-macro)
 - [Running the macro through Macro Deck](#running-the-macro-through-macro-deck)
 - [Shift-Click Support](#shift-click-support)
@@ -41,6 +43,7 @@ changes, you can refresh the saved rectangles without fully recalibrating everyt
 - `pynput`
 - A desktop session where Python is allowed to control the mouse and keyboard
 - The TerraFirmaCraft anvil UI open and visible, and an ingot with more than one page worth of recipes (like wrought iron) when you run the setup.py script
+- The [TFC Anvil Helper](https://www.curseforge.com/minecraft/texture-packs/tfc-anvil-helper) resource pack installed. This is not _strictly_ required, the scripts will work the same, but letter codes for different actions is based on the colors from the resource pack, so it might be difficult to write scripts without it until you've done it a million times.
 - The TerraFirmaCraft anvil UI open and visible when you run the macro
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) installed if you want to use it to install the dependencies and run the scripts
 
@@ -58,13 +61,13 @@ uv sync
 3. Run a full calibration once:
 
 ```powershell
-python setup.py -f
+uv run setup.py -f
 ```
 
 4. Test the macro:
 
 ```powershell
-python main.py -s 2000
+uv run main.py -s 2000
 ```
 
 5. Once you confirm the clicks land correctly, run longer sequences directly or from a file. (The `-s 2000` is a 2 second delay before the macro starts, you can remove it if you want the macro to start immediately).
@@ -82,8 +85,8 @@ uv sync
 Then run commands with:
 
 ```powershell
-uv run python setup.py --help
-uv run python main.py --help
+uv run setup.py --help
+uv run main.py --help
 ```
 
 ### Option 2: Use a normal virtual environment
@@ -101,6 +104,8 @@ python setup.py --help
 python main.py --help
 ```
 
+If you use a normal virtual environment, replace `uv run` with `python` in all the example commands in this README.
+
 ## Coordinate Setup
 
 `setup.py` is interactive. It waits for you to click points on the screen and writes the
@@ -113,7 +118,7 @@ Press `Esc` at any time during setup to abort.
 Run this the first time, or any time the stored offsets are wrong:
 
 ```powershell
-python setup.py -f
+uv run setup.py -f
 ```
 
 Full setup records:
@@ -151,7 +156,7 @@ If you already have a good `coords.json`, and only the UI position/scale changed
 without `-f`:
 
 ```powershell
-python setup.py
+uv run setup.py
 ```
 
 In this mode:
@@ -163,18 +168,57 @@ In this mode:
 This is useful after changing resolution, window placement, or UI scale while keeping the
 same relative layout, and is a much faster way to recalibrate than a full setup. You can still perform a full setup any time you want, which will overwrite the existing coordinates file when you're done.
 
+## Writing macro scripts
+
+The scripting language is based on the colors from the TFC Anvil Helper resource pack.
+
+| Symbol | Value | Color       | Action Name |
+| ------ | ----- | ----------- | ----------- |
+| `L`    | -3    | Light Blue  | Light Hit   |
+| `M`    | -6    | Medium Blue | Medium Hit  |
+| `D`    | -9    | Dark Blue   | Hard Hit    |
+| `P`    | -15   | Purple      | Draw        |
+| `G`    | +2    | Green       | Punch       |
+| `Y`    | +7    | Yellow      | Bend        |
+| `O`    | +13   | Orange      | Upset       |
+| `R`    | +16   | Red         | Shrink      |
+
+Other than the action letters, you can also perform the following actions:
+
+| Symbol             | Action                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| `plans`            | Open the plans menu                                                                              |
+| `weld`             | Click the weld button                                                                            |
+| `input1`           | Click the first input slot                                                                       |
+| `input2`           | Click the second input slot                                                                      |
+| `rlb`              | Click the left recipe scroll button on the recipe UI                                             |
+| `rrb`              | Click the right recipe scroll button on the recipe UI                                            |
+| `i1` through `i27` | Click the corresponding inventory slot, top left to bottom right, in the anvil screen (9x3 grid) |
+| `h1` through `h9`  | Click the corresponding hotbar slot, left to right                                               |
+| `r1` through `r18` | Click the corresponding recipe slot, top left to bottom right                                    |
+
+## Calculating the forge recipes
+
+You can manually figure out the optimal forge recipe with the [TFC Anvil Helper](https://www.curseforge.com/minecraft/texture-packs/tfc-anvil-helper) resource pack, but even with the helper it can be a pain to figure out the optimal recipe. This is where the `calculate_forge.py` script comes in.
+
+It is an interactive script that will ask for three final actions and the target value (you need TFC Anvil Helper to know the target value for the action). It then calculates the optimal recipe for you, and outputs the string of anvil actions. You can copy that and run it through the macro directly, or load it up into a file with other actions to run lots at a time.
+
+```powershell
+uv run calculate_forge.py
+```
+
 ## Running the macro directly
 
 The main runner replays a list of slot names:
 
 ```powershell
-python main.py SLOT SLOT SLOT
+uv run main.py SLOT SLOT SLOT
 ```
 
 Example:
 
 ```powershell
-python main.py -s 1500 i1 i2 i3
+uv run main.py -s 1500 i1 i2 i3
 ```
 
 This waits for the start delay, then clicks the first three inventory slots in order.
@@ -220,7 +264,7 @@ Prefix any slot token with `_` to hold `Shift` while clicking it.
 Example:
 
 ```powershell
-python main.py _i1 _i2 _i3
+uv run main.py _i1 _i2 _i3
 ```
 
 `_i2` means "shift-click `i2`".
@@ -243,7 +287,7 @@ R R Y Y Y L L L
 Run it with:
 
 ```powershell
-python main.py --file scripts\example.txt
+uv run main.py --file scripts\example.txt
 ```
 
 Token parsing rules:
@@ -281,16 +325,16 @@ Options:
 Examples:
 
 ```powershell
-python main.py -s 1200 -d 150 L M D
-python main.py -c alt-coords.json R R O Y
-python main.py --file scripts\forge-sequence.txt
-python main.py --move-settle-ms 40 --click-hold-ms 50 --post-click-ms 40 L L L
+uv run main.py -s 1200 -d 150 L M D
+uv run main.py -c alt-coords.json R R O Y
+uv run main.py --file scripts\forge-sequence.txt
+uv run main.py --move-settle-ms 40 --click-hold-ms 50 --post-click-ms 40 L L L
 ```
 
 ### `setup.py`
 
 ```powershell
-python setup.py [options]
+uv run setup.py [options]
 ```
 
 Options:
@@ -303,9 +347,9 @@ Options:
 Examples:
 
 ```powershell
-python setup.py -f
-python setup.py
-python setup.py -f -o custom-coords.json
+uv run setup.py -f
+uv run setup.py
+uv run setup.py -f -o custom-coords.json
 ```
 
 ## How `coords.json` Works
@@ -343,8 +387,9 @@ That means:
 
 ### Clicks land slightly off target
 
-- Rerun `python setup.py`
-- If the layout changed completely, rerun `python setup.py -f`
+- Make sure the TFC Anvil Helper resource pack is installed if you're lost with the letter codes
+- Rerun `uv run setup.py`
+- If the layout changed completely, rerun `uv run setup.py -f`
 - Increase `--move-settle-ms` a little
 - Increase `--click-hold-ms` if the game misses short clicks
 
@@ -360,13 +405,13 @@ Increase:
 Refresh calibration:
 
 ```powershell
-python setup.py
+uv run setup.py
 ```
 
 If that does not fix it:
 
 ```powershell
-python setup.py -f
+uv run setup.py -f
 ```
 
 ### `coords.json` is missing
@@ -374,7 +419,7 @@ python setup.py -f
 Create it first:
 
 ```powershell
-python setup.py -f
+uv run setup.py -f
 ```
 
 ### A slot name causes an error
