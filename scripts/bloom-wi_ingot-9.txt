@@ -1,45 +1,36 @@
 _i1
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i2
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i3
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i4
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i5
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i6
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i7
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i8
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
 _i9
-R R O Y L L L
-R R Y Y Y L L L
--input2
-+q
+G Y O O R L L L
+G G Y O O R L L L
+_input2
