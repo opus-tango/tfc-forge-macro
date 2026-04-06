@@ -433,5 +433,5 @@ Make sure the token is one of the names listed in this README. `main.py` only un
 
 ## TODO
 
-- [ ] - Double check the anvil action colors without the resource pack and possibly change the letters or update the README to reflect the base mod
+- [x] - Double check the anvil action colors without the resource pack and possibly change the letters or update the README to reflect the base mod
 - [ ] - Add support for actions other than clicking (like pressing keys)
