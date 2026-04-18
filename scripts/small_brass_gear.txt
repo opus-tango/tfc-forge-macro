@@ -1,0 +1,26 @@
+_i1
+plans
+r5
+R R R R R O O Y P R L
+_input2
+_i2
+plans
+r5
+R R R R R O O Y P R L
+_input2
+_i3
+plans
+r5
+R R R R R O O Y P R L
+_input2
+_i4
+plans
+r5
+R R R R R O O Y P R L
+_input2
+_i5
+plans
+r5
+R R R R R O O Y P R L
+_input2
+

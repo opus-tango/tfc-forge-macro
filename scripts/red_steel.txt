@@ -1,0 +1,20 @@
+_i1
+_i2
+weld
+R O O Y Y L L L
+_input2
+_i3
+_i4
+weld
+R O O Y Y L L L
+_input2
+_i5
+_i6
+weld
+R O O Y Y L L L
+_input2
+_i7
+_i8
+weld
+R O O Y Y L L L
+_input2

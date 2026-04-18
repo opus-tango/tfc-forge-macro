@@ -1,0 +1,63 @@
+_i1
+plans
+r2
+R R R O Y Y P
+plans
+r4
+R R O G Y Y L
+input1
+input2
+input1
+plans
+r4
+R R O G Y Y L
+_input1
+_input2
+
+_i2
+plans
+r2
+R R R O Y Y P
+plans
+r4
+R R O G Y Y L
+input1
+input2
+input1
+plans
+r4
+R R O G Y Y L
+_input1
+_input2
+
+_i3
+plans
+r2
+R R R O Y Y P
+plans
+r4
+R R O G Y Y L
+input1
+input2
+input1
+plans
+r4
+R R O G Y Y L
+_input1
+_input2
+
+_i4
+plans
+r2
+R R R O Y Y P
+plans
+r4
+R R O G Y Y L
+input1
+input2
+input1
+plans
+r4
+R R O G Y Y L
+_input1
+_input2
